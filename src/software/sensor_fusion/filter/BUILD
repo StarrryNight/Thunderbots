@@ -104,7 +104,8 @@ cc_test(
 cc_library(
     name = "kalman_filter",
     srcs = [],
-    hdrs = ["kalman_filter.hpp"],
+    hdrs = ["kalman_filter.hpp",
+            "unscented_kalman_filter.hpp"],
     visibility = [
         "//visibility:public",
     ],
