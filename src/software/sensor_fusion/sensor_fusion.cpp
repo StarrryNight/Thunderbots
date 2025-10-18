@@ -465,8 +465,10 @@ RobotDetection SensorFusion::invert(RobotDetection robot_detection) const
 
 BallDetection SensorFusion::invert(BallDetection ball_detection) const
 {
-    ball_detection.position =
-        Point(-ball_detection.position.x(), -ball_detection.position.y());
+    if (ball_detection.position.has_value()) {
+        ball_detection.position =
+            std::optional(Point(-ball_detection.position->x(), -ball_detection.position->y()));
+    }
     return ball_detection;
 }
 

@@ -1,6 +1,8 @@
 #include "proto/message_translation/ssl_detection.h"
 
 #include "shared/constants.h"
+#include "software/logger/logger.h"
+#include <optional>
 
 std::unique_ptr<SSLProto::SSL_DetectionBall> createSSLDetectionBall(const BallState& ball)
 {
@@ -93,19 +95,30 @@ std::vector<BallDetection> createBallDetections(
 
     for (const auto& detection : detections)
     {
+        if (detection.balls_size() == 0) {
+            LOG(INFO) << "NO BALL!";
+            // add empty detection to the list
+            BallDetection no_ball{
+                .position = std::nullopt,
+                .distance_from_ground = 0,
+                .timestamp = Timestamp::fromSeconds(detection.t_capture()),
+                .confidence = 0
+            };
+            ball_detections.push_back(no_ball);
+        }
         for (const SSLProto::SSL_DetectionBall& ball : detection.balls())
         {
             // Convert all data to meters and radians
             BallDetection ball_detection{
-                .position             = Point(ball.x() * METERS_PER_MILLIMETER,
-                                              ball.y() * METERS_PER_MILLIMETER),
+                .position             = std::optional(Point(ball.x() * METERS_PER_MILLIMETER,
+                                              ball.y() * METERS_PER_MILLIMETER)),
                 .distance_from_ground = ball.z() * METERS_PER_MILLIMETER,
                 .timestamp            = Timestamp::fromSeconds(detection.t_capture()),
                 .confidence           = ball.confidence()};
 
             bool ignore_ball = ignore_invalid_camera_data &&
-                               (min_valid_x > ball_detection.position.x() ||
-                                max_valid_x < ball_detection.position.x());
+                               (min_valid_x > ball_detection.position->x() ||
+                                max_valid_x < ball_detection.position->x());
             if (!ignore_ball)
             {
                 ball_detections.push_back(ball_detection);

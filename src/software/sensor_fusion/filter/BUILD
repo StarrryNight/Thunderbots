@@ -25,6 +25,7 @@ cc_library(
         "//software/world:field",
         "@boost//:circular_buffer",
         "@eigen",
+        "//software/sensor_fusion/filter:unscented_kalman_filter"
     ],
 )
 
@@ -102,14 +103,34 @@ cc_test(
 )
 
 cc_library(
-    name = "kalman_filter",
+    name = "unscented_kalman_filter",
     srcs = [],
-    hdrs = ["kalman_filter.hpp",
-            "unscented_kalman_filter.hpp"],
+    hdrs = ["unscented_kalman_filter.hpp"],
     visibility = [
         "//visibility:public",
     ],
     deps = [
         "@eigen",
+    ],
+)
+
+cc_library(
+    name = "kalman_filter",
+    srcs = [],
+    hdrs = ["kalman_filter.hpp",],
+    visibility = [
+        "//visibility:public",
+    ],
+    deps = [
+        "@eigen",
+    ],
+)
+
+cc_test(
+    name = "unscented_kalman_filter_test",
+    srcs = ["unscented_kalman_filter_test.cpp"],
+    deps = [
+        "//software/sensor_fusion/filter:unscented_kalman_filter",
+        "//software/test_util",
     ],
 )

@@ -63,13 +63,13 @@ class KalmanFilter
 
 template <int DimX, int DimY, int DimU>
 KalmanFilter<DimX, DimY, DimU>::KalmanFilter()
-    : x(Eigen::Matrix<double, DimX, 1>().setZero()),
-      P(Eigen::Matrix<double, DimX, DimX>().setZero()),
-      F(Eigen::Matrix<double, DimX, DimX>().setZero()),
-      Q(Eigen::Matrix<double, DimX, DimX>().setZero()),
-      B(Eigen::Matrix<double, DimX, DimU>().setZero()),
-      H(Eigen::Matrix<double, DimY, DimX>().setZero()),
-      R(Eigen::Matrix<double, DimY, DimY>().setZero())
+    : x(Eigen::Matrix<double, DimX, 1>()::Zero()),
+      P(Eigen::Matrix<double, DimX, DimX>()::Zero()),
+      F(Eigen::Matrix<double, DimX, DimX>()::Zero()),
+      Q(Eigen::Matrix<double, DimX, DimX>()::Zero()),
+      B(Eigen::Matrix<double, DimX, DimU>()::Zero()),
+      H(Eigen::Matrix<double, DimY, DimX>()::Zero()),
+      R(Eigen::Matrix<double, DimY, DimY>()::Zero())
 {
 }
 
