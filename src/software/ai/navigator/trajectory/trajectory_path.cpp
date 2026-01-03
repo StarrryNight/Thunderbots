@@ -16,7 +16,7 @@ void TrajectoryPath::append(double connection_time_sec, const Point& destination
     for (size_t i = 0; i < traj_path.size(); i++)
     {
         if (connection_time_sec <= traj_path[i].getTrajectoryEndTime())
-        {
+        {   
             // Delete all trajectory nodes after the node that is at the
             // connection_time_sec
             traj_path.erase(traj_path.begin() + i + 1, traj_path.end());

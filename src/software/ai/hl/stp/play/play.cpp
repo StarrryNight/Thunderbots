@@ -1,10 +1,10 @@
-#include "software/ai/hl/stp/play/play.h"
-
+#include <google/protobuf/util/message_differencer.h>
 #include <munkres/munkres.h>
 
 #include <Tracy.hpp>
 
 #include "proto/message_translation/tbots_protobuf.h"
+#include "software/ai/hl/stp/play/play.h"
 #include "software/ai/hl/stp/tactic/halt/halt_tactic.h"
 #include "software/ai/motion_constraint/motion_constraint_set_builder.h"
 #include "software/logger/logger.h"
@@ -214,7 +214,26 @@ std::unique_ptr<TbotsProto::PrimitiveSet> Play::get(
 
     // TODO (#3104): Remove duplicated obstacles from obstacle_list
     // Visualize all obstacles and paths
-    LOG(VISUALIZE) << obstacle_list;
+    TbotsProto::ObstacleList dedup_obst_list;
+    for (TbotsProto::Obstacle obs : obstacle_list.obstacles())
+    {
+        bool contains = false;
+        for (TbotsProto::Obstacle copied : dedup_obst_list.obstacles())
+        {
+            if (google::protobuf::util::MessageDifferencer::Equivalent(obs, copied))
+            {
+                contains = true;
+                break;
+            }
+            if (!contains)
+            {
+                *dedup_obst_list.add_obstacles() = obs;
+            }
+        }
+    }
+    LOG(INFO) << "dup_list"<<obstacle_list<<std::endl;
+
+    LOG(INFO) << "dedup_list"<<dedup_obs_list<<std::endl;
     LOG(VISUALIZE) << path_visualization;
 
     primitives_to_run->mutable_time_sent()->set_epoch_timestamp_seconds(
@@ -384,10 +403,10 @@ Play::assignTactics(const WorldPtr &world_ptr, TacticVector tactic_vector,
                 primitives_to_run->mutable_robot_primitives()->insert(
                     {robot_id, *primitive_proto});
                 remaining_robots.erase(
-                    std::remove_if(
-                        remaining_robots.begin(), remaining_robots.end(),
-                        [robots_to_assign, row](const Robot &robot)
-                        { return robot.id() == robots_to_assign.at(row).id(); }),
+                    std::remove_if(remaining_robots.begin(), remaining_robots.end(),
+                                   [robots_to_assign, row](const Robot &robot) {
+                                       return robot.id() == robots_to_assign.at(row).id();
+                                   }),
                     remaining_robots.end());
 
                 primitives[robot_id]->getVisualizationProtos(obstacle_list,
