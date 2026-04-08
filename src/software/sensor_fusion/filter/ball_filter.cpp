@@ -49,29 +49,34 @@ std::optional<Ball> BallFilter::estimateBallState(
 	std::optional<BallDetection> best_ball_detection = getBestBallDetection(new_ball_detections);	
 
 	if (prev_detection_timestamp){
-		double delta_t;
-		delta_t = (current_time - *prev_detection_timestamp).toSeconds();
-		prev_detection_timestamp = current_time;
+		double delta_t = (current_time - *prev_detection_timestamp).toSeconds();
 		kalman_filter.predict(delta_t);
 	}
 	if (best_ball_detection){
-		prev_detection_timestamp = current_time;
 		Eigen::Matrix<double,2,1> measurement;
 		measurement << best_ball_detection->position.x(), best_ball_detection->position.y();
 		double mahalanobis = kalman_filter.getMahalanobisDistance(measurement);
 		if (mahalanobis< MAHANALOGIS_THRESHOLD){
 			kalman_filter.update(measurement);
+			consecutive_outliers = 0;
+			prev_measurement = measurement;
+			prev_detection_timestamp = current_time;
 		}
 		else{
 			consecutive_outliers++;
 		}
 
-		if (consecutive_outliers> CONSECUTIVE_OUTLIERS_THRESHOLD){
-			kalman_filter.reset(measurement);
-			consecutive_outliers=0;
+		if (consecutive_outliers > CONSECUTIVE_OUTLIERS_THRESHOLD) {
+			if (prev_measurement.has_value() && prev_detection_timestamp.has_value()) {
+				double delta_t = (current_time - prev_detection_timestamp.value()).toSeconds();
+				kalman_filter.reset(measurement, prev_measurement.value(), delta_t);
+			} else {
+				kalman_filter.reset(measurement);
+			}
+			consecutive_outliers = 0;
+			prev_measurement = std::nullopt;
 		}
 	}
-
 
 	Eigen::Matrix<double,4,1> kalman_state = kalman_filter.getState();
 	Point ball_position = Point(kalman_state(0), kalman_state(1));

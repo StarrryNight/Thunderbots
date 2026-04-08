@@ -41,7 +41,14 @@ void KalmanFilter::update(const Eigen::Matrix<double,2,1> Z){
 	P = (Eigen::Matrix<double,4,4>::Identity()-Kg*C)*P;
 }
 
-void KalmanFilter::reset(const Eigen::Matrix<double,2,1> Z){
+void KalmanFilter::reset(const Eigen::Matrix<double,2,1>& Z, 
+                          const Eigen::Matrix<double,2,1>& Z_prev, 
+                          double delta_t) {
+    X << Z(0), Z(1), (Z(0)-Z_prev(0))/delta_t, (Z(1)-Z_prev(1))/delta_t;
+    P = P_i;
+}
+
+void KalmanFilter::reset(const Eigen::Matrix<double,2,1>& Z){
 	X << Z(0), Z(1), 0, 0;
 	P = P_i;
 }

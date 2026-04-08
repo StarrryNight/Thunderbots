@@ -24,7 +24,8 @@ void predict(const double delta_t);
 
 void update(const Eigen::Matrix<double,2,1> Z);
 
-void reset(const Eigen::Matrix<double,2,1> Z);
+void reset(const Eigen::Matrix<double,2,1>& z, const Eigen::Matrix<double,2,1>& z_prev, double delta_t);
+void reset(const Eigen::Matrix<double,2,1>& z);
 
 double getMahalanobisDistance(const Eigen::Matrix<double,2,1>& Z) const;
 

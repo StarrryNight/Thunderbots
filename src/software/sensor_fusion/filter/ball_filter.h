@@ -10,6 +10,7 @@
 #include "software/time/timestamp.h"
 #include "software/world/ball.h"
 #include "software/sensor_fusion/filter/kalman_filter.h"
+#include <Eigen/Dense> 
 class BallFilter
 {
 	public:
@@ -39,4 +40,6 @@ class BallFilter
 	int consecutive_outliers;
 	KalmanFilter kalman_filter;
 	std::optional<Timestamp> prev_detection_timestamp;	
+	std::optional<Eigen::Matrix<double,2,1>> prev_measurement;
+
 };
