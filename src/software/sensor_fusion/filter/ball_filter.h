@@ -2,11 +2,14 @@
 
 #include <boost/circular_buffer.hpp>
 #include <optional>
+#include <Eigen/Dense>
+#include <functional>
 
 #include "software/geom/line.h"
 #include "software/geom/point.h"
 #include "software/geom/rectangle.h"
 #include "software/sensor_fusion/filter/vision_detection.h"
+#include "software/sensor_fusion/filter/unscented_kalman_filter.hpp"
 #include "software/time/timestamp.h"
 #include "software/world/ball.h"
 
@@ -51,7 +54,23 @@ class BallFilter
     /**
      * Creates a new Ball Filter
      */
-    explicit BallFilter();
+    explicit BallFilter():
+    filter(UnscentedKalmanFilter<4, 2>(Eigen::Matrix<double, 4, 1>::Zero(), Eigen::Matrix<double, 4, 4>::Zero(),
+            Eigen::Matrix<double, 4, 4>::Zero(), Eigen::Matrix<double, 2, 4>::Zero(), Eigen::Matrix<double, 2, 2>::Zero(),
+            [] (Eigen::Matrix<double, 1, 4> i, double delta) {
+            i(0, 0) = i(0, 0) + i(0, 1) * delta;
+            i(0, 2) = i(0, 2) + i(0, 3) * delta;
+            return i;
+        }, 0.1, 2.0, 3.0 - 4.0)) {
+            filter.H << 1.0, 0.0, 0.0, 0.0,
+                        0.0, 0.0, 1.0, 0.0;
+            filter.Q << 1.0, 0.0, 0.0, 0.0,
+                        0.0, 1.0, 0.0, 0.0,
+                        0.0, 0.0, 1.0, 0.0,
+                        0.0, 0.0, 0.0, 1.0;
+            filter.R << 0.05, 0.0,
+                        0.0, 0.05;
+    }
 
     /**
      * Update the filter with the new ball detection data, and returns the new
@@ -69,128 +88,11 @@ class BallFilter
         const Rectangle& filter_area);
 
    private:
-    /**
-     * A simple struct we use to pass around velocity estimate data
-     */
-    struct BallVelocityEstimate
-    {
-        Vector average_velocity;
-        double average_velocity_magnitude;
-        // The average of the max velocity magnitude and min velocity magnitude
-        double min_max_magnitude_average;
-    };
 
-    /**
-     * A simple struct to pass around linear regression data
-     */
-    struct LinearRegressionResults
-    {
-        Line regression_line;
-        // Regression error is root mean squared error
-        double regression_error;
-    };
+   void addNewDetectionsToBuffer(std::vector<BallDetection> new_ball_detections,
+                                          const Rectangle &filter_area);
 
-    /**
-     * Adds ball detections to the buffer stored by this filter. This function will ignore
-     * data if:
-     * - the data is outside of the filter_area, or
-     * - the data is too far away from the current known ball position
-     *   (since it is likely to be random noise).
-     *
-     * @param new_ball_detections The ball detections to try add to the buffer
-     * @param filter_area The area within which the ball filter will work. Any detections
-     * outside of this area will be ignored.
-     */
-    void addNewDetectionsToBuffer(std::vector<BallDetection> new_ball_detections,
-                                  const Rectangle& filter_area);
+    UnscentedKalmanFilter<4, 2> filter;
 
-    /**
-     * Uses linear regression to filter the given list of ball detections to find the
-     * current "real" state of the ball.
-     *
-     * @param ball_detections The detections to filter
-     *
-     * @return The new ball based on the filtered state. If a filtered result cannot be
-     * calculated, returns std::nullopt
-     */
-    static std::optional<Ball> estimateBallStateFromBuffer(
-        boost::circular_buffer<BallDetection> ball_detections);
-
-    /**
-     * Returns how large the buffer of ball detections should be based on the ball's
-     * estimated velocity. A slower moving ball will result in a larger buffer size, and a
-     * faster ball will result in a smaller buffer size. This is because with a slow
-     * moving ball, we need more data in order to fit a line with reasonable accuracy,
-     * since the datapoints will be very close to one another.
-     *
-     * @param ball_detections The full list of ball detections
-     *
-     * @return The size the buffer should be to perform filtering operations. If an error
-     * occurs that prevents the size from being calculated correctly, returns std::nullopt
-     */
-    static std::optional<size_t> getAdjustedBufferSize(
-        boost::circular_buffer<BallDetection> ball_detections);
-
-    /**
-     * Given a buffer of ball detections, returns the line of best fit through
-     * the detection positions, and calculate the root mean squared error of this
-     * regression.
-     * Note: also considers vertical lines.
-     *
-     * @throws std::invalid_argument if ball_detections has less than 2 elements
-     *
-     * @param ball_detections The ball detections to fit
-     *
-     * @return The line of best fit through the given ball detection positions
-     */
-    static LinearRegressionResults calculateLineOfBestFit(
-        boost::circular_buffer<BallDetection> ball_detections);
-
-    /**
-     * Given a list of ball detections, use linear regression to find a line of best fit
-     * through the ball positions, and calculate the root mean squared error of this
-     * regression.
-     *
-     * @throws std::invalid_argument if ball_detections has less than 2 elements
-     *
-     * @param ball_detections The ball detections to use in the regression
-     *
-     * @return A struct containing the regression line and error of the linear regression
-     */
-    static LinearRegressionResults calculateLinearRegression(
-        boost::circular_buffer<BallDetection> ball_detections);
-
-    /**
-     * Estimates the current position of the ball given a buffer of ball detections
-     * and the line of best fit through them.
-     *
-     * @throws std::invalid_argument if ball_detections has less than 2 elements
-     *
-     * @param ball_detections The ball detections
-     * @param regression_line The line of best fit through the ball positions
-     *
-     * @return The estimated position of the ball
-     */
-    static Point estimateBallPosition(
-        boost::circular_buffer<BallDetection> ball_detections,
-        const Line& regression_line);
-
-    /**
-     * Estimates the ball's velocity based on the current detections in the given buffer.
-     * If the ball_regression_line is provided, the detection positions are projected onto
-     * the line before the velocities are calculated. If no velocity can be estimated,
-     * std::nullopt is returned.
-     *
-     * @param ball_detections The ball detections to use to calculate
-     * @param ball_regression_line The ball_regression_line to snap detections to before
-     * calculating velocities.
-     *
-     * @return A struct containing various estimates of the ball's velocity based on the
-     * given detections. If no velocity can be estimated, std::nullopt is returned
-     */
-    static std::optional<BallVelocityEstimate> estimateBallVelocity(
-        boost::circular_buffer<BallDetection> ball_detections,
-        const std::optional<Line>& ball_regression_line = std::nullopt);
-
-    boost::circular_buffer<BallDetection> ball_detection_buffer;
+    std::optional<Timestamp> last_time = std::nullopt;
 };

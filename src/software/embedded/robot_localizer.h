@@ -7,7 +7,7 @@
 #include "proto/world.pb.h"
 #include "software/embedded/services/imu.h"
 #include "software/geom/angle.h"
-#include "software/sensor_fusion/filter/kalman_filter.hpp"
+#include "software/sensor_fusion/filter/unscented_kalman_filter.hpp"
 #include "software/util/make_enum/make_enum.hpp"
 
 MAKE_ENUM(StateIndex, ORIENTATION, ANGULAR_VELOCITY, ANGULAR_ACCELERATION);
@@ -141,7 +141,7 @@ class RobotLocalizer
         std::chrono::time_point<std::chrono::system_clock> time;
     };
 
-    KalmanFilter<STATE_SIZE, MEASUREMENT_SIZE, 1> filter_;
+    UnscentedKalmanFilter<STATE_SIZE, MEASUREMENT_SIZE, 1> filter_;
 
     // Process noise variance used in prediction
     double process_noise_variance_;
